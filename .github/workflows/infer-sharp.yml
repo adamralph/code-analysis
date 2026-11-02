@@ -1,0 +1,32 @@
+name: infer-sharp
+on:
+  push:
+    branches: [main, release-*]
+  pull_request:
+permissions:
+  security-events: write
+jobs:
+  infer-sharp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '11.0.100'
+          check-latest: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: dotnet build
+      - run: ls -al
+      - run: pwd
+      - uses: microsoft/infersharpaction@b749060de518f410f92c87d37d2366e5e9d7c5fc # v1.5
+        with:
+          binary-path: './src'
+      - run: cat infer-out/report.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: InferSharp reports
+          path: infer-out/report.*
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: infer-out/report.sarif

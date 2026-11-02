@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <Description>A .NET source code analysis package, developed by humans, that reports a compiler warning whenever a class is not sealed, static, abstract, or marked unsealed, and includes code fixes that add sealed or an unsealed comment.</Description>
+    <MinVerTagPrefix>Sealant.</MinVerTagPrefix>
+    <PackageReleaseNotes>https://github.com/adamralph/code-analysis/blob/main/CHANGELOG.Sealant.md</PackageReleaseNotes>
+    <PackageTags>$(PackageTags);sealed</PackageTags>
+    <Product>Sealant</Product>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../Sealant.Analyzers/Sealant.Analyzers.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp.Workspaces" PrivateAssets="All" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../assets/sealant/icon.png" Pack="true" PackagePath="/" />
+    <None Include="../../README.Sealant.md" Pack="true" PackagePath="/README.md" />
+  </ItemGroup>
+
+  <Target Name="_IncludeAnalyzersInPackage">
+    <ItemGroup>
+      <TfmSpecificPackageFile Include="$(TargetPath)" PackagePath="analyzers/dotnet/cs/" />
+      <TfmSpecificPackageFile Include="../Sealant.Analyzers/bin/$(Configuration)/netstandard2.0/Sealant.Analyzers.dll" PackagePath="analyzers/dotnet/cs/" />
+    </ItemGroup>
+  </Target>
+
+</Project>

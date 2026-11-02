@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/fixtures/">
+    <Project Path="fixtures/Fixtures/Fixtures.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Sealant.Analyzers/Sealant.Analyzers.csproj" />
+    <Project Path="src/Sealant/Sealant.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Tests/Tests.csproj" />
+  </Folder>
+  <Project Path="targets/Targets.csproj" />
+</Solution>
