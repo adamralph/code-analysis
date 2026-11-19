@@ -1,0 +1,30 @@
+name: release
+on:
+  push:
+    tags: ["*.*.*.*"]
+  workflow_dispatch:
+permissions:
+  id-token: write
+env:
+  DOTNET_NOLOGO: true
+  MINVERBUILDMETADATA: build.${{ github.run_id }}.${{ github.run_attempt }}
+jobs:
+  release:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: 11.0.100
+          check-latest: false
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: ./build pack
+      - uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        id: nuget-login
+        with:
+          user: ${{ secrets.NUGET_USER }}
+      - name: push
+        env:
+          API_KEY: ${{steps.nuget-login.outputs.NUGET_API_KEY}}
+        run: dotnet nuget push "./artifacts/${GITHUB_REF_NAME}.nupkg" --api-key "$API_KEY" --source https://api.nuget.org/v3/index.json

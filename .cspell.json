@@ -1,0 +1,38 @@
+{
+  "version": "0.2",
+  "language": "en-GB",
+  "overrides": [
+    {
+      "filename": "{*.cmd,*.cs,*.csproj,*.props,*.yml,build}",
+      "language": "en-US"
+    },
+    {
+      "filename": "{*.svg,.cspell.json,packages.lock.json}",
+      "enabled": false
+    }
+  ],
+  "words": [
+    "ADAMRALPH",
+    "analyser",
+    "analysers",
+    "analyzer",
+    "analyzers",
+    "cooldown",
+    "macOS",
+    "markdownlint",
+    "MINVERBUILDMETADATA",
+    "netstandard",
+    "NOLOGO",
+    "NuGet",
+    "nupkg",
+    "sealant",
+    "struct",
+    "structs",
+    "sublicense",
+    "temporarygeneratedfile",
+    "unsealed",
+    "VSTHRD",
+    "xunit",
+    "Zawinski"
+  ]
+}
