@@ -599,6 +599,98 @@ public static class UnsealedConcreteClassAnalyzerTests
         Assert.Equal("Test.cs", diagnostic.Location.SourceTree?.FilePath);
     }
 
+    [Theory]
+    [InlineData("public", "public class Foo { }")]
+    [InlineData("internal", "internal class Foo { }")]
+    [InlineData("private", "sealed class Outer { class Foo { } }")]
+    [InlineData("protected", "sealed class Outer { protected class Foo { } }")]
+    [InlineData("protected internal", "sealed class Outer { protected internal class Foo { } }")]
+    [InlineData("private protected", "sealed class Outer { private protected class Foo { } }")]
+    [InlineData("public", "internal class Outer { public class Foo { } }")]
+    [InlineData("public, internal", "internal class Foo { }")]
+    [InlineData("Public, INTERNAL", "public class Foo { }")]
+    [InlineData(" public ,  internal ", "internal class Foo { }")]
+    [InlineData("public, unknown", "internal class Foo { }")]
+    [InlineData("file", "file class Foo { }")]
+    [InlineData("all", "internal class Foo { }")]
+    [InlineData("all", "file class Foo { }")]
+    [InlineData("public, all", "internal class Foo { }")]
+    public static async Task SelectedAccessibilityIsReported(string visibilities, string source)
+    {
+        var diagnostics = await AnalyzeAsync(source, visibilities: visibilities);
+
+        _ = Assert.Single(diagnostics);
+    }
+
+    [Theory]
+    [InlineData("public", "internal class Foo { }")]
+    [InlineData("public", "class Foo { }")]
+    [InlineData("public", "sealed class Outer { class Foo { } }")]
+    [InlineData("private", "public class Foo { }")]
+    [InlineData("internal", "public class Foo { }")]
+    [InlineData("private protected", "sealed class Outer { protected class Foo { } }")]
+    [InlineData("internal", "file class Foo { }")]
+    [InlineData("public", "file class Foo { }")]
+    public static async Task UnselectedAccessibilityIsNotReported(string visibilities, string source)
+    {
+        var diagnostics = await AnalyzeAsync(source, visibilities: visibilities);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public static async Task EmptyVisibilitiesOptionAppliesToEveryAccessibility()
+    {
+        var diagnostics = await AnalyzeAsync("internal class Foo { }", visibilities: "");
+
+        _ = Assert.Single(diagnostics);
+    }
+
+    [Fact]
+    public static async Task UnrecognizedVisibilitiesOptionAppliesToEveryAccessibility()
+    {
+        var diagnostics = await AnalyzeAsync("internal class Foo { }", visibilities: "unknown");
+
+        _ = Assert.Single(diagnostics);
+    }
+
+    [Fact]
+    public static async Task VisibilitiesOptionIsReadPerFile()
+    {
+        var diagnostics = await new UnsealedConcreteClassAnalyzer().GetDiagnosticsAsync(
+            [("public class Foo { }", "A.cs"), ("public class Bar { }", "B.cs")],
+            editorConfig:
+            [
+                ("A.cs", "sealant.SEAL0001.visibilities", "public"),
+                ("B.cs", "sealant.SEAL0001.visibilities", "private"),
+            ]);
+
+        var diagnostic = Assert.Single(diagnostics);
+        Assert.Equal("A.cs", diagnostic.Location.SourceTree?.FilePath);
+    }
+
+    [Fact]
+    public static async Task VisibilitiesOptionForPartialTypeComesFromTheReportedFile()
+    {
+        var diagnostics = await new UnsealedConcreteClassAnalyzer().GetDiagnosticsAsync(
+            [("public partial class Foo { }", "A.cs"), ("public partial class Foo { }", "B.cs")],
+            editorConfig:
+            [
+                ("A.cs", "sealant.SEAL0001.visibilities", "private"),
+                ("B.cs", "sealant.SEAL0001.visibilities", "public"),
+            ]);
+
+        Assert.Empty(diagnostics);
+    }
+
+    [Fact]
+    public static async Task UnsealedCommentStillSuppressesWhenAccessibilityIsSelected()
+    {
+        var diagnostics = await AnalyzeAsync("// unsealed\npublic class Foo { }", visibilities: "public");
+
+        Assert.Empty(diagnostics);
+    }
+
     [Fact]
     public static void SupportedDiagnosticsContainsRule()
     {
@@ -610,6 +702,11 @@ public static class UnsealedConcreteClassAnalyzerTests
         Assert.True(descriptor.IsEnabledByDefault);
     }
 
-    private static Task<ImmutableArray<Diagnostic>> AnalyzeAsync(string source, string filePath = "Test.cs") =>
-        new UnsealedConcreteClassAnalyzer().GetDiagnosticsAsync([(Text: source, Path: filePath)]);
+    private static Task<ImmutableArray<Diagnostic>> AnalyzeAsync(
+        string source, string filePath = "Test.cs", string? visibilities = null) =>
+        new UnsealedConcreteClassAnalyzer().GetDiagnosticsAsync(
+            [(Text: source, Path: filePath)],
+            editorConfig: visibilities is null
+                ? null
+                : [(Path: filePath, Key: "sealant.SEAL0001.visibilities", Value: visibilities)]);
 }

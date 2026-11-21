@@ -11,7 +11,7 @@ _[![Spell check](https://github.com/adamralph/code-analysis/actions/workflows/sp
 
 Sealant is a [.NET source code analysis](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/overview) package, developed by humans, that reports a compiler warning whenever a class is not `sealed`, `static`, `abstract`, or marked `unsealed`, and includes code fixes that add `sealed` or an `unsealed` comment.
 
-Platform support: any project built with [.NET SDK 6.0 or later](https://dot.net), for any target framework.
+Platform support: any project built with [.NET SDK 7.0 or later](https://dot.net), for any target framework.
 
 - [Quick start](#quick-start)
 - [Why](#why)

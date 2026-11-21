@@ -17,7 +17,8 @@ public static class DiagnosticAnalyzerExtensions
     public static Task<ImmutableArray<Diagnostic>> GetDiagnosticsAsync(
         this DiagnosticAnalyzer analyzer,
         (string Text, string Path)[] files,
-        OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary) =>
+        OutputKind outputKind = OutputKind.DynamicallyLinkedLibrary,
+        (string Path, string Key, string Value)[]? editorConfig = null) =>
         CSharpCompilation.Create(
                 "Test",
                 files.Select(file =>
@@ -25,6 +26,34 @@ public static class DiagnosticAnalyzerExtensions
                 References,
                 new CSharpCompilationOptions(
                     outputKind, allowUnsafe: true, nullableContextOptions: NullableContextOptions.Enable))
-            .WithAnalyzers([analyzer])
+            .WithAnalyzers(
+                [analyzer], new AnalyzerOptions([], new TestAnalyzerConfigOptionsProvider(editorConfig ?? [])))
             .GetAnalyzerDiagnosticsAsync();
+
+    private sealed class TestAnalyzerConfigOptionsProvider(
+        (string Path, string Key, string Value)[] editorConfig) : AnalyzerConfigOptionsProvider
+    {
+        private static readonly AnalyzerConfigOptions Empty = new TestAnalyzerConfigOptions([]);
+
+        private readonly ImmutableDictionary<string, AnalyzerConfigOptions> _options = editorConfig
+            .GroupBy(item => item.Path)
+            .ToImmutableDictionary(
+                group => group.Key,
+                AnalyzerConfigOptions (group) => new TestAnalyzerConfigOptions(
+                    group.ToImmutableDictionary(
+                        item => item.Key, item => item.Value, StringComparer.OrdinalIgnoreCase)));
+
+        public override AnalyzerConfigOptions GlobalOptions => Empty;
+
+        public override AnalyzerConfigOptions GetOptions(SyntaxTree tree) =>
+            _options.GetValueOrDefault(tree.FilePath, Empty);
+
+        public override AnalyzerConfigOptions GetOptions(AdditionalText textFile) => Empty;
+
+        private sealed class TestAnalyzerConfigOptions(ImmutableDictionary<string, string> values)
+            : AnalyzerConfigOptions
+        {
+            public override bool TryGetValue(string key, out string value) => values.TryGetValue(key, out value!);
+        }
+    }
 }
