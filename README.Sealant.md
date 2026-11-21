@@ -9,7 +9,7 @@ _[![InferSharp](https://github.com/adamralph/code-analysis/actions/workflows/inf
 _[![Lint](https://github.com/adamralph/code-analysis/actions/workflows/lint.yml/badge.svg?branch=main)](https://github.com/adamralph/code-analysis/actions/workflows/lint.yml?query=branch%3Amain)_
 _[![Spell check](https://github.com/adamralph/code-analysis/actions/workflows/spell-check.yml/badge.svg?branch=main)](https://github.com/adamralph/code-analysis/actions/workflows/spell-check.yml?query=branch%3Amain)_
 
-Sealant is a [.NET source code analysis](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/overview) package, developed by humans, that reports a compiler warning whenever a class is not `sealed`, `static`, `abstract`, or marked `unsealed`.
+Sealant is a [.NET source code analysis](https://learn.microsoft.com/dotnet/fundamentals/code-analysis/overview) package, developed by humans, that reports a compiler warning whenever a class is not `sealed`, `static`, `abstract`, or marked `unsealed`, and includes code fixes that add `sealed` or an `unsealed` comment.
 
 Platform support: any project built with [.NET SDK 6.0 or later](https://dot.net), for any target framework.
 

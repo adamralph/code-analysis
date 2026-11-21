@@ -5,5 +5,12 @@ MD026:
   punctuation: ".,;:!。，；：！"
 MD033:
   allowed_elements:
+    - a
+    - code
+    - h2
     - img
+    - p
     - sup
+    - table
+    - td
+    - tr
