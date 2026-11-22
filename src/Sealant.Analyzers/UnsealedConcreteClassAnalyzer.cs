@@ -44,8 +44,8 @@ internal sealed class UnsealedConcreteClassAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        // a compiler generated type (e.g. Program class synthesized for top level statements) has no source declaration
-        if (!type.HasSourceDeclaration())
+        // a compiler generated type (e.g. Program class synthesized for top level statements) has no type declaration
+        if (!type.HasTypeDeclaration())
         {
             return;
         }
