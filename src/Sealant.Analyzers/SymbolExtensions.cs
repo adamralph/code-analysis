@@ -111,6 +111,21 @@ internal static class SymbolExtensions
         return false;
     }
 
+    public static Visibilities ToVisibilities(this INamedTypeSymbol type) =>
+        type.IsFileLocal
+            ? Visibilities.File
+            : type.DeclaredAccessibility switch
+            {
+                Accessibility.Public => Visibilities.Public,
+                Accessibility.Protected => Visibilities.Protected,
+                Accessibility.Internal => Visibilities.Internal,
+                Accessibility.Private => Visibilities.Private,
+                Accessibility.ProtectedOrInternal => Visibilities.ProtectedOrInternal,
+                Accessibility.ProtectedAndInternal => Visibilities.ProtectedAndInternal,
+                Accessibility.NotApplicable => Visibilities.Private, // no declared accessibility
+                _ => Visibilities.Private,
+            };
+
     public static bool HasUnsealedComment(this ISymbol symbol, Ct ct)
     {
         foreach (var reference in symbol.DeclaringSyntaxReferences)
