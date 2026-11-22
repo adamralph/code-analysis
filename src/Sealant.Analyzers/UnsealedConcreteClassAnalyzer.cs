@@ -45,7 +45,7 @@ internal sealed class UnsealedConcreteClassAnalyzer : DiagnosticAnalyzer
         }
 
         // a compiler generated type (e.g. Program class synthesized for top level statements) has no type declaration
-        if (!type.HasTypeDeclaration())
+        if (!type.HasTypeDeclaration(context.CancellationToken))
         {
             return;
         }
@@ -55,6 +55,9 @@ internal sealed class UnsealedConcreteClassAnalyzer : DiagnosticAnalyzer
             return;
         }
 
-        context.ReportDiagnostic(Diagnostic.Create(Rule, type.GetFirstNonGeneratedLocation(), type.Name));
+        var diagnostic = Diagnostic.Create(
+            Rule, type.GetFirstNonGeneratedLocation(context.CancellationToken), type.Name);
+
+        context.ReportDiagnostic(diagnostic);
     }
 }
