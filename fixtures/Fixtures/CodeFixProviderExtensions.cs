@@ -17,21 +17,34 @@ public static class CodeFixProviderExtensions
             .Select(path => MetadataReference.CreateFromFile(path)),
     ];
 
-    public static Task<string> ApplyFirstFixAsync(
-        this CodeFixProvider provider, DiagnosticAnalyzer analyzer, string source) =>
-        provider.ApplyAsync(analyzer, source, fixAll: false, actionIndex: 0);
+    public static async Task<string> ApplyFixAsync(
+        this CodeFixProvider provider, DiagnosticAnalyzer analyzer, string source, string equivalenceKey)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = workspace.CreateDocument(source);
+        var diagnostics = await document.GetAnalyzerDiagnosticsAsync(analyzer).ConfigureAwait(false);
+        var action = await provider.GetActionAsync(document, diagnostics, equivalenceKey).ConfigureAwait(false);
+        return await action.ApplyAsync(document).ConfigureAwait(false);
+    }
 
-    public static Task<string> ApplySecondFixAsync(
-        this CodeFixProvider provider, DiagnosticAnalyzer analyzer, string source) =>
-        provider.ApplyAsync(analyzer, source, fixAll: false, actionIndex: 1);
+    public static async Task<string> ApplyFixAllAsync(
+        this CodeFixProvider provider, DiagnosticAnalyzer analyzer, string source, string equivalenceKey)
+    {
+        using var workspace = new AdhocWorkspace();
+        var document = workspace.CreateDocument(source);
+        var diagnostics = await document.GetAnalyzerDiagnosticsAsync(analyzer).ConfigureAwait(false);
+        var context = new FixAllContext(
+            document,
+            provider,
+            FixAllScope.Document,
+            equivalenceKey,
+            provider.FixableDiagnosticIds,
+            new StaticDiagnosticProvider(diagnostics),
+            Ct.None);
 
-    public static Task<string> ApplyFixAllAsync(
-        this CodeFixProvider provider, DiagnosticAnalyzer analyzer, string source) =>
-        provider.ApplyAsync(analyzer, source, fixAll: true, actionIndex: 0);
-
-    public static Task<string> ApplySecondFixAllAsync(
-        this CodeFixProvider provider, DiagnosticAnalyzer analyzer, string source) =>
-        provider.ApplyAsync(analyzer, source, fixAll: true, actionIndex: 1);
+        var action = (await provider.GetFixAllProvider()!.GetFixAsync(context).ConfigureAwait(false))!;
+        return await action.ApplyAsync(document).ConfigureAwait(false);
+    }
 
     public static async Task<ImmutableArray<CodeAction>> GetCodeActionsAsync(
         this CodeFixProvider provider, DiagnosticAnalyzer analyzer, string source)
@@ -42,36 +55,25 @@ public static class CodeFixProviderExtensions
         return await provider.RegisterAsync(document, diagnostics.Single()).ConfigureAwait(false);
     }
 
-    private static async Task<string> ApplyAsync(
-        this CodeFixProvider provider, DiagnosticAnalyzer analyzer, string source, bool fixAll, int actionIndex)
+    private static async Task<CodeAction> GetActionAsync(
+        this CodeFixProvider provider, Document document, ImmutableArray<Diagnostic> diagnostics, string equivalenceKey)
     {
-        using var workspace = new AdhocWorkspace();
-
-        var document = workspace.CreateDocument(source);
-        var diagnostics = await document.GetAnalyzerDiagnosticsAsync(analyzer).ConfigureAwait(false);
-        var actions = await provider.RegisterAsync(document, diagnostics[0]).ConfigureAwait(false);
-        var selectedAction = actions[actionIndex];
-
-        CodeAction action;
-
-        if (fixAll)
+        foreach (var diagnostic in diagnostics)
         {
-            var context = new FixAllContext(
-                document,
-                provider,
-                FixAllScope.Document,
-                selectedAction.EquivalenceKey!,
-                provider.FixableDiagnosticIds,
-                new StaticDiagnosticProvider(diagnostics),
-                Ct.None);
-
-            action = (await provider.GetFixAllProvider()!.GetFixAsync(context).ConfigureAwait(false))!;
-        }
-        else
-        {
-            action = selectedAction;
+            foreach (var action in await provider.RegisterAsync(document, diagnostic).ConfigureAwait(false))
+            {
+                if (action.EquivalenceKey == equivalenceKey)
+                {
+                    return action;
+                }
+            }
         }
 
+        throw new InvalidOperationException($"No code action found for equivalence key '{equivalenceKey}'.");
+    }
+
+    private static async Task<string> ApplyAsync(this CodeAction action, Document document)
+    {
         var operations = await action.GetOperationsAsync(Ct.None).ConfigureAwait(false);
         var changedSolution = operations.OfType<ApplyChangesOperation>().Single().ChangedSolution;
         var changedDocument = changedSolution.GetDocument(document.Id)!;
