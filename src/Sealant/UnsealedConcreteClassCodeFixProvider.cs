@@ -5,6 +5,7 @@ using Microsoft.CodeAnalysis.CodeActions;
 using Microsoft.CodeAnalysis.CodeFixes;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.FindSymbols;
 using Sealant.Analyzers;
 
 namespace Sealant;
@@ -31,20 +32,41 @@ internal sealed class UnsealedConcreteClassCodeFixProvider : CodeFixProvider
             return;
         }
 
-        var sealAction = CodeAction.Create(
-            title: "Seal type",
-            createChangedDocument: _ =>
-                Task.FromResult(context.Document.WithSyntaxRoot(root.ReplaceNode(declaration, AddSealed(declaration)))),
-            equivalenceKey: $"{UnsealedConcreteClassAnalyzer.Rule.Id}.Seal");
+        if (await context.Document.GetSemanticModelAsync(context.CancellationToken).ConfigureAwait(false) is not { } model)
+        {
+            return;
+        }
 
-        var markUnsealedAction = CodeAction.Create(
-            title: "Mark as unsealed",
-            createChangedDocument: _ =>
-                Task.FromResult(context.Document.WithSyntaxRoot(root.ReplaceNode(declaration, AddUnsealedComment(declaration)))),
-            equivalenceKey: $"{UnsealedConcreteClassAnalyzer.Rule.Id}.Unsealed");
+        if (model.GetDeclaredSymbol(declaration, context.CancellationToken) is not { } type)
+        {
+            return;
+        }
 
-        context.RegisterCodeFix(sealAction, context.Diagnostics);
-        context.RegisterCodeFix(markUnsealedAction, context.Diagnostics);
+        var derivedTypes = await SymbolFinder.FindDerivedClassesAsync(
+            type, context.Document.Project.Solution, transitive: false, cancellationToken: context.CancellationToken).ConfigureAwait(false);
+
+        if (derivedTypes.Any())
+        {
+            context.RegisterCodeFix(CodeAction.Create(
+                "Mark as unsealed (has derived types)",
+                _ => Task.FromResult(
+                    context.Document.WithSyntaxRoot(root.ReplaceNode(declaration, AddUnsealedComment(declaration)))),
+                $"{UnsealedConcreteClassAnalyzer.Rule.Id}.Unsealed.DerivedTypes"), context.Diagnostics);
+        }
+        else
+        {
+            context.RegisterCodeFix(CodeAction.Create(
+                "Seal type",
+                _ => Task.FromResult(
+                    context.Document.WithSyntaxRoot(root.ReplaceNode(declaration, AddSealed(declaration)))),
+                $"{UnsealedConcreteClassAnalyzer.Rule.Id}.Seal"), context.Diagnostics);
+
+            context.RegisterCodeFix(CodeAction.Create(
+                "Mark as unsealed",
+                _ => Task.FromResult(
+                    context.Document.WithSyntaxRoot(root.ReplaceNode(declaration, AddUnsealedComment(declaration)))),
+                $"{UnsealedConcreteClassAnalyzer.Rule.Id}.Unsealed"), context.Diagnostics);
+        }
     }
 
     private static TypeDeclarationSyntax AddSealed(TypeDeclarationSyntax declaration)
