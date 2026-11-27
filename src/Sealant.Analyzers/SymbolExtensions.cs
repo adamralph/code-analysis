@@ -111,20 +111,94 @@ internal static class SymbolExtensions
         return false;
     }
 
-    public static Visibilities ToVisibilities(this INamedTypeSymbol type) =>
-        type.IsFileLocal
-            ? Visibilities.File
-            : type.DeclaredAccessibility switch
+    public static Visibilities ToVisibilities(this INamedTypeSymbol type)
+    {
+        if (type.IsFileLocal)
+        {
+            // only top level types can be declared file-local
+            return Visibilities.File;
+        }
+
+        var accessibility = type.DeclaredAccessibility == Accessibility.NotApplicable
+            ? Accessibility.Private // no declared accessibility
+            : type.DeclaredAccessibility;
+
+        for (var containingType = type.ContainingType;
+            containingType is not null && accessibility != Accessibility.Private;
+            containingType = containingType.ContainingType)
+        {
+            if (containingType.IsFileLocal)
             {
-                Accessibility.Public => Visibilities.Public,
-                Accessibility.Protected => Visibilities.Protected,
-                Accessibility.Internal => Visibilities.Internal,
-                Accessibility.Private => Visibilities.Private,
-                Accessibility.ProtectedOrInternal => Visibilities.ProtectedOrInternal,
-                Accessibility.ProtectedAndInternal => Visibilities.ProtectedAndInternal,
-                Accessibility.NotApplicable => Visibilities.Private, // no declared accessibility
-                _ => Visibilities.Private,
-            };
+                // only top level types can be declared file-local
+                return Visibilities.File;
+            }
+
+            if (containingType.DeclaredAccessibility != Accessibility.NotApplicable)
+            {
+                accessibility = Intersect(accessibility, containingType.DeclaredAccessibility);
+            }
+        }
+
+        return accessibility switch
+        {
+            Accessibility.Private => Visibilities.Private,
+            Accessibility.Public => Visibilities.Public,
+            Accessibility.Protected => Visibilities.Protected,
+            Accessibility.Internal => Visibilities.Internal,
+            Accessibility.ProtectedOrInternal => Visibilities.ProtectedOrInternal,
+            Accessibility.ProtectedAndInternal => Visibilities.ProtectedAndInternal,
+            Accessibility.NotApplicable => Visibilities.Private, // no declared accessibility
+            _ => Visibilities.Private,
+        };
+    }
+
+    private static Accessibility Intersect(Accessibility first, Accessibility second) =>
+        (first, second) switch
+        {
+            (Accessibility.Private, Accessibility.Private) => Accessibility.Private,
+            (Accessibility.Private, Accessibility.ProtectedAndInternal) => Accessibility.Private,
+            (Accessibility.Private, Accessibility.Protected) => Accessibility.Private,
+            (Accessibility.Private, Accessibility.Internal) => Accessibility.Private,
+            (Accessibility.Private, Accessibility.ProtectedOrInternal) => Accessibility.Private,
+            (Accessibility.Private, Accessibility.Public) => Accessibility.Private,
+
+            (Accessibility.ProtectedAndInternal, Accessibility.Private) => Accessibility.Private,
+            (Accessibility.ProtectedAndInternal, Accessibility.ProtectedAndInternal) => Accessibility.ProtectedAndInternal,
+            (Accessibility.ProtectedAndInternal, Accessibility.Protected) => Accessibility.ProtectedAndInternal,
+            (Accessibility.ProtectedAndInternal, Accessibility.Internal) => Accessibility.ProtectedAndInternal,
+            (Accessibility.ProtectedAndInternal, Accessibility.ProtectedOrInternal) => Accessibility.ProtectedAndInternal,
+            (Accessibility.ProtectedAndInternal, Accessibility.Public) => Accessibility.ProtectedAndInternal,
+
+            (Accessibility.Protected, Accessibility.Private) => Accessibility.Private,
+            (Accessibility.Protected, Accessibility.ProtectedAndInternal) => Accessibility.ProtectedAndInternal,
+            (Accessibility.Protected, Accessibility.Protected) => Accessibility.Protected,
+            (Accessibility.Protected, Accessibility.Internal) => Accessibility.ProtectedAndInternal,
+            (Accessibility.Protected, Accessibility.ProtectedOrInternal) => Accessibility.Protected,
+            (Accessibility.Protected, Accessibility.Public) => Accessibility.Protected,
+
+            (Accessibility.Internal, Accessibility.Private) => Accessibility.Private,
+            (Accessibility.Internal, Accessibility.ProtectedAndInternal) => Accessibility.ProtectedAndInternal,
+            (Accessibility.Internal, Accessibility.Protected) => Accessibility.ProtectedAndInternal,
+            (Accessibility.Internal, Accessibility.Internal) => Accessibility.Internal,
+            (Accessibility.Internal, Accessibility.ProtectedOrInternal) => Accessibility.Internal,
+            (Accessibility.Internal, Accessibility.Public) => Accessibility.Internal,
+
+            (Accessibility.ProtectedOrInternal, Accessibility.Private) => Accessibility.Private,
+            (Accessibility.ProtectedOrInternal, Accessibility.ProtectedAndInternal) => Accessibility.ProtectedAndInternal,
+            (Accessibility.ProtectedOrInternal, Accessibility.Protected) => Accessibility.Protected,
+            (Accessibility.ProtectedOrInternal, Accessibility.Internal) => Accessibility.Internal,
+            (Accessibility.ProtectedOrInternal, Accessibility.ProtectedOrInternal) => Accessibility.ProtectedOrInternal,
+            (Accessibility.ProtectedOrInternal, Accessibility.Public) => Accessibility.ProtectedOrInternal,
+
+            (Accessibility.Public, Accessibility.Private) => Accessibility.Private,
+            (Accessibility.Public, Accessibility.ProtectedAndInternal) => Accessibility.ProtectedAndInternal,
+            (Accessibility.Public, Accessibility.Protected) => Accessibility.Protected,
+            (Accessibility.Public, Accessibility.Internal) => Accessibility.Internal,
+            (Accessibility.Public, Accessibility.ProtectedOrInternal) => Accessibility.ProtectedOrInternal,
+            (Accessibility.Public, Accessibility.Public) => Accessibility.Public,
+
+            _ => Accessibility.Private,
+        };
 
     public static bool HasUnsealedComment(this ISymbol symbol, Ct ct)
     {
